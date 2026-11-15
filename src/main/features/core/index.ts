@@ -3,6 +3,7 @@ import './dlna';
 import './custom-themes';
 import './lyrics';
 import './player';
+import './radio';
 import './remote';
 import './settings';
 import './discord-rpc';

@@ -212,6 +212,16 @@ export const useRadioAudioInstance = () => {
     );
 };
 
+// ICY StreamTitle is usually "Artist - Title"; some stations (SWR3) send "Title / Artist".
+const parseStreamTitle = (streamTitle: null | string): null | RadioMetadata => {
+    if (!streamTitle) return null;
+    const dash = streamTitle.match(/^(.*?)\s*[-–—]\s*(.+)$/);
+    if (dash) return { artist: dash[1].trim() || null, title: dash[2].trim() || null };
+    const slash = streamTitle.match(/^(.+?)\s+\/\s+(.+)$/);
+    if (slash) return { artist: slash[2].trim(), title: slash[1].trim() };
+    return { artist: null, title: streamTitle };
+};
+
 export const useRadioMetadata = () => {
     const { actions, currentStreamUrl } = useRadioStore();
     const { setMetadata } = actions;
@@ -247,7 +257,25 @@ export const useRadioMetadata = () => {
             };
         }
 
-        // Otherwise, use IcecastMetadataStats for web player
+        // In Electron the main process reads the ICY metadata: from a page, most stations'
+        // CORS headers block the request or hide icy-metaint, and no title ever shows.
+        const getStreamTitle = isElectron() ? window.api.utils?.getRadioStreamTitle : undefined;
+        if (getStreamTitle) {
+            let cancelled = false;
+            const fetchTitle = async () => {
+                const streamTitle = await getStreamTitle(currentStreamUrl).catch(() => null);
+                if (!cancelled) setMetadata(parseStreamTitle(streamTitle));
+            };
+            void fetchTitle();
+            const intervalId = setInterval(fetchTitle, 15000);
+            return () => {
+                cancelled = true;
+                clearInterval(intervalId);
+                setMetadata(null);
+            };
+        }
+
+        // Otherwise (web build), use IcecastMetadataStats
         let statsListener: IcecastMetadataStats | null = null;
 
         try {
@@ -263,23 +291,7 @@ export const useRadioMetadata = () => {
                         streamTitle = stats.icy.StreamTitle;
                     }
 
-                    // Parse the combined format into title and artist
-                    let artist: null | string = null;
-                    let title: null | string = null;
-
-                    if (streamTitle) {
-                        // Try to parse "Artist - Title" format
-                        const match = streamTitle.match(/^(.*?)\s*[-–—]\s*(.+)$/);
-                        if (match) {
-                            artist = match[1].trim() || null;
-                            title = match[2].trim() || null;
-                        } else {
-                            // If no separator found, treat the whole thing as title
-                            title = streamTitle;
-                        }
-                    }
-
-                    setMetadata(title || artist ? { artist, title } : null);
+                    setMetadata(parseStreamTitle(streamTitle));
                 },
                 sources: ['icy'],
             });

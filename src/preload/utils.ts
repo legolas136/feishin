@@ -44,6 +44,10 @@ const readLocalImage = (filePath: string): Promise<ReadLocalImageResult> => {
     return ipcRenderer.invoke('read-local-image', filePath);
 };
 
+// Current ICY "StreamTitle" of a radio stream, read in the main process (no CORS).
+const getRadioStreamTitle = (url: string): Promise<null | string> =>
+    ipcRenderer.invoke('radio-get-stream-title', url);
+
 const openApplicationDirectory = async () => {
     return ipcRenderer.invoke('open-application-directory');
 };
@@ -179,6 +183,7 @@ export const utils = {
     exportDiagnostics,
     forceGarbageCollection,
     getCustomCss,
+    getRadioStreamTitle,
     isLinux,
     isMacOS,
     isWindows,
