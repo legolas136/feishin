@@ -2,9 +2,8 @@ import isElectron from 'is-electron';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { DlnaDevice, GroupMember } from './dlna/types';
-
 import { playerHandoff } from '../audio-player/engine/player-handoff';
+import { type DlnaDevice, type GroupMember, isCastDevice } from './dlna/types';
 
 import { DeviceList } from '/@/renderer/features/player/components/dlna/device-list';
 import { GroupBuilder } from '/@/renderer/features/player/components/dlna/group-builder';
@@ -600,19 +599,23 @@ export const DlnaCastButton = () => {
                                     </Group>
 
                                     <Group gap="xs">
-                                        {!member.isCoordinator && !member.device.isPair && (
-                                            <Button
-                                                color="red"
-                                                onClick={() => handleRemoveMember(member.device.id)}
-                                                size="compact-xs"
-                                                style={{
-                                                    color: 'var(--theme-colors-state-error)',
-                                                }}
-                                                variant="subtle"
-                                            >
-                                                {t('dlna.group.remove')}
-                                            </Button>
-                                        )}
+                                        {!member.isCoordinator &&
+                                            !member.device.isPair &&
+                                            !isCastDevice(member.device) && (
+                                                <Button
+                                                    color="red"
+                                                    onClick={() =>
+                                                        handleRemoveMember(member.device.id)
+                                                    }
+                                                    size="compact-xs"
+                                                    style={{
+                                                        color: 'var(--theme-colors-state-error)',
+                                                    }}
+                                                    variant="subtle"
+                                                >
+                                                    {t('dlna.group.remove')}
+                                                </Button>
+                                            )}
                                         {isSonosDevice(member.device) && (
                                             <SpeakerPropertiesButton
                                                 deviceId={member.device.id}
@@ -624,18 +627,21 @@ export const DlnaCastButton = () => {
                             ))}
 
                             <Group gap="xs" mt="sm">
-                                <Button
-                                    flex={1}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setScreen('expand-group');
-                                        void handleDiscover();
-                                    }}
-                                    size="xs"
-                                    variant="outline"
-                                >
-                                    {t('dlna.group.addSpeaker')}
-                                </Button>
+                                {/* Cast groups are set up in the Google Home app */}
+                                {!groupMemberList.some((m) => isCastDevice(m.device)) && (
+                                    <Button
+                                        flex={1}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setScreen('expand-group');
+                                            void handleDiscover();
+                                        }}
+                                        size="xs"
+                                        variant="outline"
+                                    >
+                                        {t('dlna.group.addSpeaker')}
+                                    </Button>
+                                )}
                                 <Button
                                     color={isShiftDown ? 'white' : 'red'}
                                     flex={1}

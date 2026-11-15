@@ -1762,7 +1762,8 @@ ipcMain.handle('dlna-group-remove-member', async (_event, deviceId: string) => {
 ipcMain.on(
     'dlna-group-member-volume',
     async (_event, payload: { deviceId: string; volume: number }) => {
-        if (cast.isCastActive()) return cast.setVolume(payload.volume);
+        if (cast.isCastActive())
+            return cast.setMemberVolume(payload.deviceId, { level: payload.volume / 100 });
         const device = groupMembers.find((m) => m.id === payload.deviceId);
         if (!device) return;
         try {
@@ -1777,7 +1778,8 @@ ipcMain.on(
 ipcMain.on(
     'dlna-group-member-mute',
     async (_event, payload: { deviceId: string; muted: boolean }) => {
-        if (cast.isCastActive()) return cast.setMute(payload.muted);
+        if (cast.isCastActive())
+            return cast.setMemberVolume(payload.deviceId, { muted: payload.muted });
         const device = groupMembers.find((m) => m.id === payload.deviceId);
         if (!device) return;
         try {

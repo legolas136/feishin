@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 
 import styles from './volume-button.module.css';
 
+import { isCastDevice } from '/@/renderer/features/player/components/dlna/types';
 import { CustomPlayerbarSlider } from '/@/renderer/features/player/components/playerbar-slider';
 import { usePlayer } from '/@/renderer/features/player/context/player-context';
 import { useHotkeys } from '/@/renderer/hooks/use-hotkeys';
@@ -28,7 +29,7 @@ const dlnaPlayerListener = isElectron() ? window.api.dlnaPlayerListener : null;
 const ipc = isElectron() ? window.api.ipc : null;
 
 interface DlnaGroupMember {
-    device: { id: string; isPair?: boolean; name: string };
+    device: { controlUrl?: string; id: string; isPair?: boolean; name: string };
     isCoordinator: boolean;
     volume: number;
 }
@@ -135,6 +136,8 @@ export const DlnaVolumeButton = () => {
         isGroupMode && !groupMembers.some((member) => member.device.isPair);
     const coordinator = groupMembers.find((member) => member.isCoordinator) ?? groupMembers[0];
     const nonCoordinators = groupMembers.filter((member) => !member.isCoordinator);
+    // A cast group scales its members itself when the group volume changes.
+    const isCastGroup = isCastDevice(coordinator?.device);
 
     useEffect(() => {
         const updateShiftState = (event: KeyboardEvent) => setIsShiftDown(event.shiftKey);
@@ -228,10 +231,11 @@ export const DlnaVolumeButton = () => {
     const handleMute = useCallback(() => mediaToggleMute(), [mediaToggleMute]);
     const handleVolumeSlider = useCallback(
         (nextVolume: number) => {
-            if (showGroupVolumePanel && !isShiftDown) applyVolumeToGroup(nextVolume);
+            if (showGroupVolumePanel && !isShiftDown && !isCastGroup)
+                applyVolumeToGroup(nextVolume);
             setSliderValue(nextVolume);
         },
-        [applyVolumeToGroup, isShiftDown, showGroupVolumePanel],
+        [applyVolumeToGroup, isCastGroup, isShiftDown, showGroupVolumePanel],
     );
     const handleVolumeWheel = useCallback(
         (event: WheelEvent<HTMLButtonElement | HTMLDivElement>) => {
@@ -242,10 +246,18 @@ export const DlnaVolumeButton = () => {
                 volumeWheelStep,
                 event.deltaY <= 0 && event.deltaX <= 0,
             );
-            if (showGroupVolumePanel && !isShiftDown) applyVolumeToGroup(nextVolume);
+            if (showGroupVolumePanel && !isShiftDown && !isCastGroup)
+                applyVolumeToGroup(nextVolume);
             setSliderValue(nextVolume);
         },
-        [applyVolumeToGroup, isShiftDown, showGroupVolumePanel, sliderValue, volumeWheelStep],
+        [
+            applyVolumeToGroup,
+            isCastGroup,
+            isShiftDown,
+            showGroupVolumePanel,
+            sliderValue,
+            volumeWheelStep,
+        ],
     );
 
     const handleVolumeDown = useThrottledCallback(() => decreaseVolume(volumeWheelStep), 100);

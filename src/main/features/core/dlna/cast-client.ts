@@ -18,10 +18,19 @@ export interface CastDeviceInfo {
     port: number;
 }
 
+export interface CastGroupMember {
+    deviceId: string;
+    name: string;
+    volume: { level: number; muted: boolean };
+}
+
 export interface CastMediaStatus {
+    currentItemId?: number;
     currentTime: number;
     duration: number;
     idleReason?: string;
+    // Queue item ids, present when the device includes the queue in the status.
+    itemIds?: number[];
     mediaSessionId: number;
     playerState: 'BUFFERING' | 'IDLE' | 'PAUSED' | 'PLAYING';
 }
@@ -148,6 +157,22 @@ function localIpv4Addresses(): string[] {
 
 // --- CastMessage framing ---------------------------------------------------------------------
 
+function mediaInfo(options: CastLoadOptions) {
+    return {
+        contentId: options.url,
+        contentType: options.contentType,
+        duration: options.duration,
+        metadata: {
+            albumName: options.albumName,
+            artist: options.artistName,
+            images: options.albumArtUrl ? [{ url: options.albumArtUrl }] : [],
+            metadataType: 3, // MusicTrackMediaMetadata
+            title: options.title,
+        },
+        streamType: options.live ? 'LIVE' : 'BUFFERED',
+    };
+}
+
 function parseResponse(buf: Buffer, into: DnsRecords) {
     let off = 12;
     const questions = buf.readUInt16BE(4);
@@ -199,6 +224,10 @@ function readName(buf: Buffer, start: number): { end: number; name: string } {
     return { end: end < 0 ? off : end, name: labels.join('.') };
 }
 
+function replyError(reply: any) {
+    return new Error(`${reply.type}${reply.reason ? `: ${reply.reason}` : ''}`);
+}
+
 function stringField(tag: number, value: string): Buffer {
     const data = Buffer.from(value, 'utf8');
     return Buffer.concat([Buffer.from([tag]), varint(data.length), data]);
@@ -220,6 +249,7 @@ const NS_CONNECTION = 'urn:x-cast:com.google.cast.tp.connection';
 const NS_HEARTBEAT = 'urn:x-cast:com.google.cast.tp.heartbeat';
 const NS_RECEIVER = 'urn:x-cast:com.google.cast.receiver';
 const NS_MEDIA = 'urn:x-cast:com.google.cast.media';
+const NS_MULTIZONE = 'urn:x-cast:com.google.cast.multizone';
 const DEFAULT_MEDIA_RECEIVER = 'CC1AD845';
 const SENDER = 'sender-feishin';
 const RECEIVER = 'receiver-0';
@@ -239,10 +269,12 @@ export interface CastLoadOptions {
 
 /**
  * One connection to one cast device (or cast group). Emits `media` (CastMediaStatus),
- * `volume` ({ level, muted }, 0-1) and `close`.
+ * `volume` ({ level, muted }, 0-1), `member-volume` (CastGroupMember, cast groups only),
+ * `app-closed` and `close`.
  */
 export class CastSession extends EventEmitter {
     mediaSessionId = 0;
+    private appSessionId = '';
     private buffer = Buffer.alloc(0);
     private heartbeat: NodeJS.Timeout | null = null;
     private pending = new Map<number, (msg: any) => void>();
@@ -298,6 +330,12 @@ export class CastSession extends EventEmitter {
         );
     }
 
+    // Members of a cast group with their own volume. Empty for a single device.
+    async getGroupMembers(): Promise<CastGroupMember[]> {
+        const reply = await this.request(RECEIVER, NS_MULTIZONE, { type: 'GET_STATUS' });
+        return reply.status?.devices ?? [];
+    }
+
     async getReceiverStatus(): Promise<any> {
         return (await this.request(RECEIVER, NS_RECEIVER, { type: 'GET_STATUS' })).status;
     }
@@ -312,6 +350,7 @@ export class CastSession extends EventEmitter {
         );
         if (!app) throw new Error(`Launch failed: ${JSON.stringify(status)}`);
         this.transportId = app.transportId;
+        this.appSessionId = app.sessionId;
         this.mediaSessionId = 0;
         this.send(this.transportId, NS_CONNECTION, { type: 'CONNECT' });
     }
@@ -321,24 +360,10 @@ export class CastSession extends EventEmitter {
         const reply = await this.request(this.transportId, NS_MEDIA, {
             autoplay: options.autoplay,
             currentTime: options.currentTime,
-            media: {
-                contentId: options.url,
-                contentType: options.contentType,
-                duration: options.duration,
-                metadata: {
-                    albumName: options.albumName,
-                    artist: options.artistName,
-                    images: options.albumArtUrl ? [{ url: options.albumArtUrl }] : [],
-                    metadataType: 3, // MusicTrackMediaMetadata
-                    title: options.title,
-                },
-                streamType: options.live ? 'LIVE' : 'BUFFERED',
-            },
+            media: mediaInfo(options),
             type: 'LOAD',
         });
-        if (reply.type !== 'MEDIA_STATUS') {
-            throw new Error(`${reply.type}${reply.reason ? `: ${reply.reason}` : ''}`);
-        }
+        if (reply.type !== 'MEDIA_STATUS') throw replyError(reply);
     }
 
     media(type: 'PAUSE' | 'PLAY' | 'STOP', extra: Record<string, unknown> = {}) {
@@ -356,6 +381,31 @@ export class CastSession extends EventEmitter {
         this.send(this.transportId, NS_MEDIA, { requestId: this.requestId++, type: 'GET_STATUS' });
     }
 
+    // Appends a track to the device's queue; the receiver preloads it and switches over
+    // on its own when the current one ends. Resolves to the new item's id.
+    async queueInsert(options: CastLoadOptions): Promise<number> {
+        if (!this.transportId || !this.mediaSessionId) throw new Error('Nothing loaded');
+        const reply = await this.request(this.transportId, NS_MEDIA, {
+            items: [{ autoplay: true, media: mediaInfo(options), preloadTime: 20 }],
+            mediaSessionId: this.mediaSessionId,
+            type: 'QUEUE_INSERT',
+        });
+        if (reply.type !== 'MEDIA_STATUS') throw replyError(reply);
+        const ids: number[] = reply.status?.[0]?.items?.map((i: any) => i.itemId) ?? [];
+        if (!ids.length) throw new Error('QUEUE_INSERT reply without queue items');
+        return Math.max(...ids);
+    }
+
+    queueRemove(itemIds: number[]) {
+        if (!this.transportId || !this.mediaSessionId || !itemIds.length) return;
+        this.send(this.transportId, NS_MEDIA, {
+            itemIds,
+            mediaSessionId: this.mediaSessionId,
+            requestId: this.requestId++,
+            type: 'QUEUE_REMOVE',
+        });
+    }
+
     seek(seconds: number) {
         if (!this.transportId || !this.mediaSessionId) return;
         this.send(this.transportId, NS_MEDIA, {
@@ -364,6 +414,18 @@ export class CastSession extends EventEmitter {
             requestId: this.requestId++,
             type: 'SEEK',
         });
+    }
+
+    // Volume of one member of a cast group. The device only accepts this while an app runs
+    // on the group (NOT_LAUNCHED otherwise).
+    async setMemberVolume(deviceId: string, volume: { level?: number; muted?: boolean }) {
+        const reply = await this.request(RECEIVER, NS_MULTIZONE, {
+            deviceId,
+            sessionId: this.appSessionId || undefined,
+            type: 'SET_DEVICE_VOLUME',
+            volume,
+        });
+        if (reply.type === 'INVALID_REQUEST') throw replyError(reply);
     }
 
     setVolume(volume: { level?: number; muted?: boolean }) {
@@ -423,14 +485,18 @@ export class CastSession extends EventEmitter {
                 this.emit('app-closed');
             }
         }
+        if (namespace === NS_MULTIZONE && data.type === 'DEVICE_UPDATED' && data.device) {
+            this.emit('member-volume', data.device);
+        }
         if (data.type === 'MEDIA_STATUS') {
             for (const s of data.status ?? []) {
-                if (s.mediaSessionId && s.playerState !== 'IDLE')
-                    this.mediaSessionId = s.mediaSessionId;
+                if (s.mediaSessionId && !s.idleReason) this.mediaSessionId = s.mediaSessionId;
                 this.emit('media', {
+                    currentItemId: s.currentItemId,
                     currentTime: s.currentTime ?? 0,
                     duration: s.media?.duration ?? 0,
                     idleReason: s.idleReason,
+                    itemIds: s.items?.map((i: any) => i.itemId),
                     mediaSessionId: s.mediaSessionId,
                     playerState: s.playerState,
                 } satisfies CastMediaStatus);
