@@ -22,9 +22,11 @@ export const usePlaylistSongListFilters = () => {
     const albumArtistIdsMode = useAppStore((state) => state.albumArtistIdsMode);
     const artistIdsMode = useAppStore((state) => state.artistIdsMode);
     const genreIdsMode = useAppStore((state) => state.genreIdsMode);
+    const moodIdsMode = useAppStore((state) => state.moodIdsMode);
     const setAlbumArtistIdsModeStore = useAppStore((state) => state.actions.setAlbumArtistIdsMode);
     const setArtistIdsModeStore = useAppStore((state) => state.actions.setArtistIdsMode);
     const setGenreIdsModeStore = useAppStore((state) => state.actions.setGenreIdsMode);
+    const setMoodIdsModeStore = useAppStore((state) => state.actions.setMoodIdsMode);
     const { sortBy } = useSortByFilter<SongListSort>(SongListSort.ID, ItemListKey.PLAYLIST_SONG);
 
     const { sortOrder } = useSortOrderFilter(SortOrder.ASC, ItemListKey.PLAYLIST_SONG);
@@ -45,6 +47,11 @@ export const usePlaylistSongListFilters = () => {
 
     const artistIds = useMemo(
         () => parseArrayParam(searchParams, FILTER_KEYS.SONG.ARTIST_IDS),
+        [searchParams],
+    );
+
+    const moods = useMemo(
+        () => parseArrayParam(searchParams, FILTER_KEYS.SONG.MOOD),
         [searchParams],
     );
 
@@ -105,6 +112,17 @@ export const usePlaylistSongListFilters = () => {
                         replace: true,
                     },
                 );
+            });
+        },
+        [setSearchParams],
+    );
+
+    const setMoods = useCallback(
+        (value: null | string[]) => {
+            runInUrlTransition(() => {
+                setSearchParams((prev) => setSearchParam(prev, FILTER_KEYS.SONG.MOOD, value), {
+                    replace: true,
+                });
             });
         },
         [setSearchParams],
@@ -172,6 +190,11 @@ export const usePlaylistSongListFilters = () => {
         [setGenreIdsModeStore],
     );
 
+    const setMoodsMode = useCallback(
+        (value: 'and' | 'or') => setMoodIdsModeStore(value),
+        [setMoodIdsModeStore],
+    );
+
     const setCustom = useCallback(
         (value: null | Record<string, any>) => {
             runInUrlTransition(() => {
@@ -217,6 +240,7 @@ export const usePlaylistSongListFilters = () => {
                             [FILTER_KEYS.SONG.HAS_RATING]: null,
                             [FILTER_KEYS.SONG.MAX_YEAR]: null,
                             [FILTER_KEYS.SONG.MIN_YEAR]: null,
+                            [FILTER_KEYS.SONG.MOOD]: null,
                         },
                         new Set([FILTER_KEYS.SONG._CUSTOM]),
                     ),
@@ -241,6 +265,8 @@ export const usePlaylistSongListFilters = () => {
             [FILTER_KEYS.SONG.HAS_RATING]: hasRating ?? undefined,
             [FILTER_KEYS.SONG.MAX_YEAR]: maxYear ?? undefined,
             [FILTER_KEYS.SONG.MIN_YEAR]: minYear ?? undefined,
+            [FILTER_KEYS.SONG.MOOD]: moods ?? undefined,
+            [FILTER_KEYS.SONG.MOOD_MODE]: moodIdsMode,
         }),
         [
             searchTerm,
@@ -257,6 +283,8 @@ export const usePlaylistSongListFilters = () => {
             hasRating,
             maxYear,
             minYear,
+            moods,
+            moodIdsMode,
         ],
     );
 
@@ -274,6 +302,8 @@ export const usePlaylistSongListFilters = () => {
         setHasRating,
         setMaxYear,
         setMinYear,
+        setMoods,
+        setMoodsMode,
         setSearchTerm,
     };
 };

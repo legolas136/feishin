@@ -140,6 +140,15 @@ export const SONG_TABLE_COLUMNS: DefaultTableColumn[] = [
         width: 300,
     },
     {
+        align: 'start',
+        autoSize: false,
+        isEnabled: false,
+        label: i18n.t('table.config.label.mood'),
+        pinned: null,
+        value: TableColumn.MOOD,
+        width: 300,
+    },
+    {
         align: 'center',
         autoSize: false,
         isEnabled: true,

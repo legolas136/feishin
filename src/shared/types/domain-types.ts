@@ -649,6 +649,7 @@ export enum SongListSort {
     FAVORITED = 'favorited',
     GENRE = 'genre',
     ID = 'id',
+    MOOD = 'mood',
     NAME = 'name',
     PLAY_COUNT = 'playCount',
     RANDOM = SortKeyRandom,
@@ -718,6 +719,7 @@ export const songListSortMap: SongListSortMap = {
         favorited: undefined,
         genre: undefined,
         id: undefined,
+        mood: undefined,
         name: JFSongListSort.NAME,
         playCount: JFSongListSort.PLAY_COUNT,
         random: JFSongListSort.RANDOM,
@@ -741,6 +743,7 @@ export const songListSortMap: SongListSortMap = {
         favorited: NDSongListSort.FAVORITED,
         genre: NDSongListSort.GENRE,
         id: NDSongListSort.ID,
+        mood: undefined,
         name: NDSongListSort.TITLE,
         playCount: NDSongListSort.PLAY_COUNT,
         random: NDSongListSort.RANDOM,
@@ -764,6 +767,7 @@ export const songListSortMap: SongListSortMap = {
         favorited: undefined,
         genre: undefined,
         id: undefined,
+        mood: undefined,
         name: undefined,
         playCount: undefined,
         random: undefined,
@@ -2011,7 +2015,7 @@ export type StructuredUnsyncedLyric = Omit<FullLyricsMetadata, 'lyrics'> & {
 
 export type Tag = {
     name: string;
-    options: { id: string; name: string }[];
+    options: { id: string; name: string; songCount?: number }[];
 };
 
 export type TagListArgs = BaseEndpointArgs & {

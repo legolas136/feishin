@@ -29,6 +29,8 @@ export interface AppSlice extends AppState {
         setGenreSelectMode: (mode: 'multi' | 'single') => void;
         setGlobalExpanded: (value: GlobalExpandedState | null) => void;
         setLatestVersion: (version: null | string) => void;
+        setMoodIdsMode: (mode: 'and' | 'or') => void;
+        setMoodSelectMode: (mode: 'multi' | 'single') => void;
         setPageSidebar: (key: string, value: boolean) => void;
         setPrivateMode: (enabled: boolean) => void;
         setShowTimeRemaining: (enabled: boolean) => void;
@@ -58,6 +60,8 @@ export interface AppState {
     globalExpanded: GlobalExpandedState | null;
     isReorderingQueue: boolean;
     latestVersion: null | string;
+    moodIdsMode: 'and' | 'or';
+    moodSelectMode: 'multi' | 'single';
     pageSidebar: Record<string, boolean>;
     platform: Platform;
     privateMode: boolean;
@@ -168,6 +172,16 @@ export const useAppStore = createWithEqualityFn<AppSlice>()(
                             state.latestVersion = version;
                         });
                     },
+                    setMoodIdsMode: (mode) => {
+                        set((state) => {
+                            state.moodIdsMode = mode;
+                        });
+                    },
+                    setMoodSelectMode: (mode) => {
+                        set((state) => {
+                            state.moodSelectMode = mode;
+                        });
+                    },
                     setPageSidebar: (key, value) => {
                         set((state) => {
                             state.pageSidebar[key] = value;
@@ -231,6 +245,8 @@ export const useAppStore = createWithEqualityFn<AppSlice>()(
                 globalExpanded: null,
                 isReorderingQueue: false,
                 latestVersion: null,
+                moodIdsMode: 'and',
+                moodSelectMode: 'multi',
                 pageSidebar: {
                     album: true,
                     song: true,

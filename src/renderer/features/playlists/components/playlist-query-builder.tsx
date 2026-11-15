@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { QueryBuilder } from '/@/renderer/components/query-builder';
 import { playlistsQueries } from '/@/renderer/features/playlists/api/playlists-api';
 import { convertNDQueryToQueryGroup } from '/@/renderer/features/playlists/utils';
+import { sharedQueries } from '/@/renderer/features/shared/api/shared-api';
 import { useCurrentServer } from '/@/renderer/store';
 import { useQueryBuilderSettings } from '/@/renderer/store/settings.store';
 import {
@@ -36,7 +37,12 @@ import { SegmentedControl } from '/@/shared/components/segmented-control/segment
 import { Select } from '/@/shared/components/select/select';
 import { Stack } from '/@/shared/components/stack/stack';
 import { useForm } from '/@/shared/hooks/use-form';
-import { PlaylistListSort, SongListSort, SortOrder } from '/@/shared/types/domain-types';
+import {
+    LibraryItem,
+    PlaylistListSort,
+    SongListSort,
+    SortOrder,
+} from '/@/shared/types/domain-types';
 import { QueryBuilderGroup, QueryBuilderRule } from '/@/shared/types/types';
 
 type AddArgs = {
@@ -206,6 +212,26 @@ export const PlaylistQueryBuilder = forwardRef(
                     value: p.id,
                 }));
         }, [playlistId, playlists]);
+
+        const { data: tagList } = useQuery(
+            sharedQueries.tagList({
+                options: { gcTime: 1000 * 60 * 60, staleTime: 1000 * 60 * 60 },
+                query: { type: LibraryItem.SONG },
+                serverId: server?.id,
+            }),
+        );
+
+        // Known tag values (e.g. mood) offered as suggestions for matching string fields
+        const valueSuggestions = useMemo(
+            () =>
+                Object.fromEntries(
+                    (tagList?.tags ?? []).map((tag) => [
+                        tag.name,
+                        [...new Set(tag.options.map((option) => option.name))],
+                    ]),
+                ),
+            [tagList?.tags],
+        );
 
         // Memoize parsed sort entries
         const initialSortEntries = useMemo(
@@ -563,6 +589,7 @@ export const PlaylistQueryBuilder = forwardRef(
                             operators={operators}
                             playlists={playlistData}
                             uniqueId={filters.uniqueId}
+                            valueSuggestions={valueSuggestions}
                         />
                         <Group align="flex-end" gap="sm" w="100%" wrap="nowrap">
                             <Stack gap="xs" w="100%">

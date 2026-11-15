@@ -243,6 +243,19 @@ export const sortSongList = (songs: Song[], sortBy: SongListSort, sortOrder: Sor
             }
             break;
 
+        case SongListSort.MOOD:
+            results = orderBy(
+                results,
+                [
+                    (v) => v.tags?.mood?.[0]?.toLowerCase(),
+                    (v) => v.album?.toLowerCase(),
+                    'discNumber',
+                    'trackNumber',
+                ],
+                [order, order, order, order],
+            );
+            break;
+
         case SongListSort.NAME:
             results = orderBy(
                 results,

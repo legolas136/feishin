@@ -51,6 +51,7 @@ interface QueryBuilderProps {
     playlists?: { label: string; value: string }[];
     saveActions?: React.ReactNode;
     uniqueId: string;
+    valueSuggestions?: Record<string, string[]>;
 }
 
 export const QueryBuilder = ({
@@ -72,6 +73,7 @@ export const QueryBuilder = ({
     playlists,
     saveActions,
     uniqueId,
+    valueSuggestions,
 }: QueryBuilderProps) => {
     const { t } = useTranslation();
 
@@ -193,6 +195,7 @@ export const QueryBuilder = ({
                             onDeleteRule={onDeleteRule}
                             operators={operators}
                             selectData={playlists}
+                            valueSuggestions={valueSuggestions}
                         />
                     </div>
                 ))}
@@ -218,6 +221,7 @@ export const QueryBuilder = ({
                                     operators={operators}
                                     playlists={playlists}
                                     uniqueId={group.uniqueId}
+                                    valueSuggestions={valueSuggestions}
                                 />
                             </div>
                         ))}

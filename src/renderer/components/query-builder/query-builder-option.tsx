@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { Filters } from '/@/renderer/components/query-builder';
 import { ActionIcon } from '/@/shared/components/action-icon/action-icon';
+import { Autocomplete } from '/@/shared/components/autocomplete/autocomplete';
 import { DateInput } from '/@/shared/components/date-picker/date-picker';
 import { Group } from '/@/shared/components/group/group';
 import { NumberInput } from '/@/shared/components/number-input/number-input';
@@ -32,6 +33,7 @@ interface QueryOptionProps {
         string: { label: string; value: string }[];
     };
     selectData?: { label: string; value: string }[];
+    valueSuggestions?: Record<string, string[]>;
 }
 
 const QueryValueInput = ({
@@ -39,6 +41,7 @@ const QueryValueInput = ({
     defaultValue,
     onChange,
     operator,
+    suggestions,
     type,
     value: valueProp,
     ...props
@@ -233,6 +236,18 @@ const QueryValueInput = ({
         case 'playlist':
             return <Select data={data} onChange={onChange} value={value} {...props} />;
         case 'string':
+            if (suggestions?.length) {
+                return (
+                    <Autocomplete
+                        data={suggestions}
+                        limit={100}
+                        onChange={onChange}
+                        size="sm"
+                        value={value || ''}
+                        {...props}
+                    />
+                );
+            }
             return <TextInput onChange={onChange} size="sm" value={value || ''} {...props} />;
 
         default:
@@ -252,6 +267,7 @@ export const QueryBuilderOption = ({
     onDeleteRule,
     operators,
     selectData,
+    valueSuggestions,
 }: QueryOptionProps) => {
     const { field, operator, uniqueId, value } = data;
 
@@ -346,6 +362,7 @@ export const QueryBuilderOption = ({
                     onChange={handleChangeValue}
                     operator={operator}
                     size="sm"
+                    suggestions={field ? valueSuggestions?.[field] : undefined}
                     type={
                         operator === 'inTheRange' || operator === 'inTheRangeDate'
                             ? 'dateRange'

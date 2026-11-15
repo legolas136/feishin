@@ -183,6 +183,11 @@ export const CLIENT_SIDE_SONG_FILTERS = [
     },
     {
         defaultOrder: SortOrder.ASC,
+        name: i18n.t('filter.mood'),
+        value: SongListSort.MOOD,
+    },
+    {
+        defaultOrder: SortOrder.ASC,
         name: i18n.t('filter.name'),
         value: SongListSort.NAME,
     },

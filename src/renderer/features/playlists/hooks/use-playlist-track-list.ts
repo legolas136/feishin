@@ -75,6 +75,17 @@ export function applyClientSideSongFilters(songs: Song[], query: Record<string, 
         }
     }
 
+    const moodsMode = (query[FILTER_KEYS.SONG.MOOD_MODE] as 'and' | 'or' | undefined) ?? 'and';
+    const moods = query[FILTER_KEYS.SONG.MOOD] as string[] | undefined;
+    if (moods?.length) {
+        if (moodsMode === 'and') {
+            result = result.filter((s) => moods!.every((m) => s.tags?.mood?.includes(m)));
+        } else {
+            const set = new Set(moods);
+            result = result.filter((s) => s.tags?.mood?.some((m) => set.has(m)));
+        }
+    }
+
     const minYear = query[FILTER_KEYS.SONG.MIN_YEAR] as number | undefined;
     if (minYear != null) {
         result = result.filter((s) => s.releaseYear != null && s.releaseYear >= minYear);

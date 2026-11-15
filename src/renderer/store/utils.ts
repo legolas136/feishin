@@ -154,9 +154,15 @@ export const playerStoreStorage: PersistStorage<unknown> = {
  * @returns the a custom deep merge
  */
 export const mergeOverridingColumns = <T>(persistedState: unknown, currentState: T) => {
-    return mergeWith(currentState, persistedState, (_original, persistent, key) => {
+    return mergeWith(currentState, persistedState, (original, persistent, key) => {
         if (key === 'columns') {
-            return persistent;
+            // Append columns added since the settings were saved, disabled
+            if (!Array.isArray(original) || !Array.isArray(persistent)) return persistent;
+            const ids = new Set(persistent.map((column) => column?.id));
+            const missing = original
+                .filter((column) => column?.id && !ids.has(column.id))
+                .map((column) => ({ ...column, isEnabled: false }));
+            return [...persistent, ...missing];
         }
 
         return undefined;
