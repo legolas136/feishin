@@ -41,6 +41,7 @@ export const isCastActive = () => session !== null;
 export async function connect(target: DlnaDevice) {
     await disconnect(true);
     const { hostname, port } = new URL(target.controlUrl.replace('cast://', 'http://'));
+    let running: any = null;
     const next = new CastSession({
         host: hostname,
         id: target.id,
@@ -56,6 +57,7 @@ export async function connect(target: DlnaDevice) {
         // A single device lists itself as its only member.
         members = await next.getGroupMembers().catch(() => []);
         if (members.length < 2) members = [];
+        running = await next.attach(status).catch(() => null);
     } catch (err) {
         castLog(`Failed to connect to ${target.name}`, err);
         next.close();
@@ -106,11 +108,18 @@ export async function connect(target: DlnaDevice) {
     }, 1000);
     castLog(`Connected to ${target.name}`);
     sendGroupState();
+    const playback = adoptRunningMedia(running);
+    if (playback) {
+        // The engine only mounts once connect returns, so report a little later.
+        setTimeout(() => {
+            if (session === next) send('renderer-dlna-connect-playback', playback);
+        }, 1000);
+    }
     return {
-        currentDuration: 0,
-        currentPosition: 0,
-        currentTransportState: 'STOPPED',
-        currentUri: '',
+        currentDuration: playback?.duration ?? 0,
+        currentPosition: playback?.position ?? 0,
+        currentTransportState: playback?.transportState ?? 'STOPPED',
+        currentUri: playback?.uri ?? '',
         nextUri: '',
         success: true,
         volume,
@@ -224,6 +233,39 @@ export function setVolume(value: number) {
 export function stop() {
     currentUrl = '';
     session?.media('STOP');
+}
+
+// Takes over a media session found running on the device, so the engine can match its track
+// in the queue and keep it playing instead of reloading it.
+function adoptRunningMedia(status: any) {
+    const transportStates: Record<string, string> = {
+        BUFFERING: 'TRANSITIONING',
+        PAUSED: 'PAUSED_PLAYBACK',
+        PLAYING: 'PLAYING',
+    };
+    const uri: string | undefined = status?.media?.contentId;
+    const transportState = transportStates[status?.playerState];
+    if (!uri || !transportState) return null;
+    currentUrl = uri;
+    currentItemId = status.currentItemId;
+    playerState = status.playerState;
+    position = status.currentTime ?? 0;
+    positionAt = Date.now();
+    positionOffset = 0;
+    loadedAt = Date.now();
+    // Whatever is queued after it is dropped; the engine queues its own next track.
+    const others: number[] = (status.items ?? [])
+        .map((i: any) => i.itemId)
+        .filter((id: number) => id !== status.currentItemId);
+    session?.queueRemove(others);
+    castLog(`Joined running playback: ${uri.split('?')[0]} (${status.playerState})`);
+    return {
+        duration: status.media?.duration ?? 0,
+        nextUri: '',
+        position,
+        transportState,
+        uri,
+    };
 }
 
 // The current track ended and the device did not move on by itself.

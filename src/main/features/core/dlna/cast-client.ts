@@ -286,6 +286,20 @@ export class CastSession extends EventEmitter {
         super();
     }
 
+    // Joins a Default Media Receiver session already running on the device (left playing by
+    // an earlier passive disconnect, or another sender). Resolves to its media status.
+    async attach(receiverStatus: any): Promise<any> {
+        const app = receiverStatus?.applications?.find(
+            (a: any) => a.appId === DEFAULT_MEDIA_RECEIVER,
+        );
+        if (!app) return null;
+        this.transportId = app.transportId;
+        this.appSessionId = app.sessionId;
+        this.send(this.transportId, NS_CONNECTION, { type: 'CONNECT' });
+        const reply = await this.request(this.transportId, NS_MEDIA, { type: 'GET_STATUS' });
+        return reply.status?.[0] ?? null;
+    }
+
     close() {
         if (this.heartbeat) clearInterval(this.heartbeat);
         this.heartbeat = null;
