@@ -14,6 +14,7 @@ import os from 'os';
 import path from 'path';
 
 import { getMainWindow } from '../../../index';
+import * as cast from './cast-target';
 import {
     becomeCoordinatorOfStandaloneGroup,
     clearNextAVTransportURI,
@@ -1552,6 +1553,7 @@ async function waitForTransportState(
 ipcMain.handle('dlna-discover', async () => {
     try {
         dlnaLog('Discovering devices...');
+        const castDevices = cast.discover();
         const result = await discoverDevices(5000);
         if (result === null) {
             dlnaLog('Discovery aborted, Node not found');
@@ -1559,11 +1561,11 @@ ipcMain.handle('dlna-discover', async () => {
                 message: 'DLNA discovery on macOS requires Node to be installed and added to PATH.',
                 type: 'error',
             });
-            return [];
+            return castDevices;
         }
         dlnaLog(`Found ${result.length} device(s)`);
         const finalDevices = await enrichDevicesWithTopology(result);
-        return finalDevices;
+        return [...finalDevices, ...(await castDevices)];
     } catch (err) {
         dlnaLog('Discovery failed', err);
         return [];
@@ -1572,6 +1574,11 @@ ipcMain.handle('dlna-discover', async () => {
 
 // Connect to a specific DLNA device
 ipcMain.handle('dlna-connect', async (_event, device: DlnaDevice) => {
+    if (cast.isCastDevice(device)) {
+        if (connectedDevice) await fullDisconnect();
+        return cast.connect(device);
+    }
+    await cast.disconnect();
     try {
         if (connectedDevice) await fullDisconnect();
         const actualDevice = device.groupMembers?.find((m) => m.id === device.id) || device;
@@ -1667,6 +1674,7 @@ ipcMain.handle('dlna-connect', async (_event, device: DlnaDevice) => {
 
 // Disconnect from the current device
 ipcMain.handle('dlna-disconnect', async () => {
+    if (cast.isCastActive()) return cast.disconnect().then(() => true);
     try {
         await fullDisconnect();
         return true;
@@ -1682,6 +1690,7 @@ ipcMain.handle('dlna-disconnect', async () => {
 });
 
 ipcMain.handle('dlna-disconnect-passive', async () => {
+    if (cast.isCastActive()) return cast.disconnect(true).then(() => true);
     try {
         await passiveDisconnect();
         return true;
@@ -1753,6 +1762,7 @@ ipcMain.handle('dlna-group-remove-member', async (_event, deviceId: string) => {
 ipcMain.on(
     'dlna-group-member-volume',
     async (_event, payload: { deviceId: string; volume: number }) => {
+        if (cast.isCastActive()) return cast.setVolume(payload.volume);
         const device = groupMembers.find((m) => m.id === payload.deviceId);
         if (!device) return;
         try {
@@ -1767,6 +1777,7 @@ ipcMain.on(
 ipcMain.on(
     'dlna-group-member-mute',
     async (_event, payload: { deviceId: string; muted: boolean }) => {
+        if (cast.isCastActive()) return cast.setMute(payload.muted);
         const device = groupMembers.find((m) => m.id === payload.deviceId);
         if (!device) return;
         try {
@@ -1778,6 +1789,7 @@ ipcMain.on(
 );
 
 ipcMain.handle('dlna-group-get-state', async () => {
+    if (cast.isCastActive()) return cast.getGroupState();
     if (!connectedDevice || groupMembers.length === 0) return [];
     return groupMembers.map((m) => ({
         device: m,
@@ -1789,6 +1801,7 @@ ipcMain.handle('dlna-group-get-state', async () => {
 });
 
 ipcMain.on('dlna-set-radio-mode', (_event, enabled: boolean) => {
+    cast.setRadioMode(enabled);
     isRadioMode = enabled;
     dlnaLog(`Radio mode ${enabled ? 'enabled' : 'disabled'}`);
     if (enabled) {
@@ -1813,6 +1826,7 @@ ipcMain.on(
             url: string;
         },
     ) => {
+        if (cast.isCastActive()) return cast.playUrl({ ...data, url: rewriteUrlForLan(data.url) });
         if (!connectedDevice) return;
         const device = connectedDevice;
         playInFlight = true;
@@ -1947,6 +1961,8 @@ ipcMain.on(
 
 // Set the next track for gapless playback
 ipcMain.on('dlna-set-next-url', async (_event, data: { metadata: TrackMetadata; url: string }) => {
+    if (cast.isCastActive())
+        return cast.setNext({ ...data, url: data.url && rewriteUrlForLan(data.url) });
     if (!connectedDevice) return;
     await settleBeforeNextUriChange();
     if (!connectedDevice) return;
@@ -1981,6 +1997,7 @@ ipcMain.on('dlna-set-next-url', async (_event, data: { metadata: TrackMetadata; 
 
 // Resume playback
 ipcMain.on('dlna-play', async () => {
+    if (cast.isCastActive()) return cast.play();
     if (!connectedDevice) return;
     try {
         isPausedIntentionally = false;
@@ -2002,6 +2019,7 @@ ipcMain.on('dlna-play', async () => {
 
 // Pause playback
 ipcMain.on('dlna-pause', async () => {
+    if (cast.isCastActive()) return cast.pause();
     if (!connectedDevice) return;
     try {
         isPausedIntentionally = true;
@@ -2025,6 +2043,7 @@ ipcMain.on('dlna-pause', async () => {
 });
 
 ipcMain.on('dlna-clear-next', async () => {
+    if (cast.isCastActive()) return cast.setNext({ metadata: { title: '' }, url: '' });
     if (!connectedDevice) return;
     await settleBeforeNextUriChange();
     if (!connectedDevice) return;
@@ -2041,6 +2060,7 @@ ipcMain.on('dlna-clear-next', async () => {
 
 // Stop playback
 ipcMain.on('dlna-stop', async () => {
+    if (cast.isCastActive()) return cast.stop();
     if (!connectedDevice) return;
     try {
         isPausedIntentionally = true;
@@ -2055,6 +2075,7 @@ ipcMain.on('dlna-stop', async () => {
 
 // Seek to position
 ipcMain.on('dlna-seek', async (_event, seconds: number) => {
+    if (cast.isCastActive()) return cast.seek(seconds);
     if (!connectedDevice) return;
     // A chunked transcode cannot be seeked (see the engine's isChunkedTranscodeUrl); a HEOS
     // receiver given a Seek on one hangs in TRANSITIONING. The engine re-sends with an offset
@@ -2078,6 +2099,7 @@ ipcMain.on('dlna-seek', async (_event, seconds: number) => {
 
 // Set volume (0-100)
 ipcMain.on('dlna-volume', async (_event, value: number) => {
+    if (cast.isCastActive()) return cast.setVolume(value);
     if (!connectedDevice) return;
     try {
         lastAppVolume = value;
@@ -2092,6 +2114,7 @@ ipcMain.on('dlna-volume', async (_event, value: number) => {
 
 // Set mute
 ipcMain.on('dlna-mute', async (_event, muted: boolean) => {
+    if (cast.isCastActive()) return cast.setMute(muted);
     if (!connectedDevice) return;
     try {
         await setMute(connectedDevice, muted);
@@ -2102,6 +2125,7 @@ ipcMain.on('dlna-mute', async (_event, muted: boolean) => {
 
 // Get current position
 ipcMain.handle('dlna-get-position', async () => {
+    if (cast.isCastActive()) return cast.getPosition();
     if (!connectedDevice) return 0;
     try {
         const info = await getPositionInfo(connectedDevice);
