@@ -59,12 +59,13 @@ const TagFilterItem = ({ label, onChange, options, tagValue, value }: TagFilterI
 TagFilterItem.displayName = 'TagFilterItem';
 
 interface TagFiltersProps {
+    exclude?: string[];
     query: Record<string, any | undefined>;
     setCustom: (value: null | Record<string, any>) => void;
     type: LibraryItem.ALBUM | LibraryItem.SONG;
 }
 
-export const TagFilters = ({ query, setCustom, type }: TagFiltersProps) => {
+export const TagFilters = ({ exclude, query, setCustom, type }: TagFiltersProps) => {
     const serverId = useCurrentServerId();
 
     const tagsQuery = useSuspenseQuery(
@@ -95,7 +96,7 @@ export const TagFilters = ({ query, setCustom, type }: TagFiltersProps) => {
                 : tagsQuery.data?.excluded.song;
 
         for (const tag of tagsQuery.data?.tags || []) {
-            if (!excluded.includes(tag.name)) {
+            if (!excluded.includes(tag.name) && !exclude?.includes(tag.name)) {
                 results.push({
                     label: NDSongQueryFieldsLabelMap[tag.name] ?? titleCase(tag.name),
                     options: tag.options,
@@ -105,7 +106,13 @@ export const TagFilters = ({ query, setCustom, type }: TagFiltersProps) => {
         }
 
         return results;
-    }, [tagsQuery.data?.tags, tagsQuery.data?.excluded.album, tagsQuery.data?.excluded.song, type]);
+    }, [
+        exclude,
+        tagsQuery.data?.tags,
+        tagsQuery.data?.excluded.album,
+        tagsQuery.data?.excluded.song,
+        type,
+    ]);
 
     return (
         <>

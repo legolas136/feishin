@@ -2015,7 +2015,7 @@ export type StructuredUnsyncedLyric = Omit<FullLyricsMetadata, 'lyrics'> & {
 
 export type Tag = {
     name: string;
-    options: { id: string; name: string }[];
+    options: { id: string; name: string; songCount?: number }[];
 };
 
 export type TagListArgs = BaseEndpointArgs & {

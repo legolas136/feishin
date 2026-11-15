@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { getItemImageUrl } from '/@/renderer/components/item-image/item-image';
 import { artistsQueries } from '/@/renderer/features/artists/api/artists-api';
 import { genresQueries } from '/@/renderer/features/genres/api/genres-api';
+import { sharedQueries } from '/@/renderer/features/shared/api/shared-api';
 import {
     ArtistMultiSelectRow,
     GenreMultiSelectRow,
@@ -79,6 +80,30 @@ export const NavidromeSongFilters = ({
             value: genre.id,
         }));
     }, [genreListQuery.data]);
+
+    const tagListQuery = useSuspenseQuery(
+        sharedQueries.tagList({
+            options: {
+                gcTime: 1000 * 60 * 60,
+                staleTime: 1000 * 60 * 60,
+            },
+            query: { type: LibraryItem.SONG },
+            serverId,
+        }),
+    );
+
+    const moodList = useMemo(
+        () =>
+            (tagListQuery.data?.tags?.find((tag) => tag.name === 'mood')?.options ?? []).map(
+                (option) => ({
+                    albumCount: null,
+                    label: option.name,
+                    songCount: option.songCount ?? null,
+                    value: option.id,
+                }),
+            ),
+        [tagListQuery.data?.tags],
+    );
 
     const albumArtistListQuery = useSuspenseQuery(
         artistsQueries.albumArtistList({
@@ -224,6 +249,56 @@ export const NavidromeSongFilters = ({
         [setGenreId],
     );
 
+    const moodSelectMode = useAppStore((state) => state.moodSelectMode);
+    const { setMoodSelectMode } = useAppStoreActions();
+
+    const selectedMoods = useMemo(() => {
+        const value = query._custom?.mood as string | string[] | undefined;
+        if (!value) return [];
+        return Array.isArray(value) ? value : [value];
+    }, [query._custom?.mood]);
+
+    const handleMoodChange = useCallback(
+        (e: null | string[]) =>
+            setCustom((prev) => {
+                const next = { ...prev, mood: e && e.length > 0 ? e : undefined };
+                if (!next.mood) delete next.mood;
+                return next;
+            }),
+        [setCustom],
+    );
+
+    const handleMoodSelectModeChange = useCallback(
+        (value: string) => {
+            const newMode = value as 'multi' | 'single';
+            setMoodSelectMode(newMode);
+            if (newMode === 'single' && selectedMoods.length > 1) {
+                handleMoodChange([selectedMoods[0]]);
+            }
+        },
+        [handleMoodChange, selectedMoods, setMoodSelectMode],
+    );
+
+    const moodFilterLabel = useMemo(
+        () => (
+            <Group gap="xs" justify="space-between" w="100%">
+                <Text fw={500} size="sm">
+                    {t('filter.mood')}
+                </Text>
+                <SegmentedControl
+                    data={[
+                        { label: t('common.filter_single'), value: 'single' },
+                        { label: t('common.filter_multiple'), value: 'multi' },
+                    ]}
+                    onChange={handleMoodSelectModeChange}
+                    size="xs"
+                    value={moodSelectMode}
+                />
+            </Group>
+        ),
+        [handleMoodSelectModeChange, moodSelectMode, t],
+    );
+
     const artistSelectMode = useAppStore((state) => state.artistSelectMode);
     const { setArtistSelectMode } = useAppStoreActions();
 
@@ -340,6 +415,18 @@ export const NavidromeSongFilters = ({
                     value={selectedGenreIds}
                 />
             )}
+            {moodList.length > 0 && (
+                <VirtualMultiSelect
+                    displayCountType="song"
+                    height={220}
+                    label={moodFilterLabel}
+                    onChange={handleMoodChange}
+                    options={moodList}
+                    RowComponent={GenreMultiSelectRow}
+                    singleSelect={moodSelectMode === 'single'}
+                    value={selectedMoods}
+                />
+            )}
             <NumberInput
                 hideControls={false}
                 label={t('common.year')}
@@ -348,7 +435,12 @@ export const NavidromeSongFilters = ({
                 onChange={(e) => debouncedHandleYearFilter(e)}
                 value={query.minYear ?? undefined}
             />
-            <TagFilters query={query} setCustom={setCustom} type={LibraryItem.SONG} />
+            <TagFilters
+                exclude={['mood']}
+                query={query}
+                setCustom={setCustom}
+                type={LibraryItem.SONG}
+            />
         </Stack>
     );
 };
