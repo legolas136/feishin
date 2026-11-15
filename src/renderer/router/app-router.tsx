@@ -71,6 +71,7 @@ const DummyAlbumDetailRoute = lazy(
 );
 
 const GenreListRoute = lazy(() => import('/@/renderer/features/genres/routes/genre-list-route'));
+const MoodListRoute = lazy(() => import('/@/renderer/features/moods/routes/mood-list-route'));
 
 const GenreDetailRoute = lazy(
     () => import('/@/renderer/features/genres/routes/genre-detail-route'),
@@ -249,6 +250,10 @@ export const AppRouter = () => {
                                                 path={AppRoute.LIBRARY_GENRES_DETAIL}
                                             />
                                         </Route>
+                                        <Route
+                                            element={<MoodListRoute />}
+                                            path={AppRoute.LIBRARY_MOODS}
+                                        />
                                         <Route
                                             element={<AlbumListRoute />}
                                             path={AppRoute.LIBRARY_ALBUMS}

@@ -1,0 +1,30 @@
+.content {
+    flex: 1;
+    padding: var(--theme-spacing-md) var(--theme-spacing-lg);
+    overflow-y: auto;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: var(--theme-spacing-md);
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 90px;
+    padding: var(--theme-spacing-md);
+    text-decoration: none;
+    border-radius: var(--theme-radius-md);
+    transition: filter 0.15s ease;
+}
+
+.card:hover {
+    filter: brightness(1.15);
+}
+
+.row {
+    cursor: pointer;
+}
