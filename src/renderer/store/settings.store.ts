@@ -1023,6 +1023,7 @@ export enum SidebarItem {
     FOLDERS = 'Folders',
     GENRES = 'Genres',
     HOME = 'Home',
+    MOODS = 'Moods',
     NOW_PLAYING = 'Now Playing',
     PLAYLISTS = 'Playlists',
     RADIO = 'Radio',
@@ -1212,6 +1213,12 @@ export const sidebarItems: SidebarItemType[] = [
         id: 'Genres',
         label: i18n.t('page.sidebar.genres'),
         route: AppRoute.LIBRARY_GENRES,
+    },
+    {
+        disabled: false,
+        id: 'Moods',
+        label: i18n.t('page.sidebar.moods'),
+        route: AppRoute.LIBRARY_MOODS,
     },
     {
         disabled: false,
@@ -2933,10 +2940,23 @@ export const useSettingsStore = createWithEqualityFn<SettingsSlice>()(
                     });
                 }
 
+                if (version < 35) {
+                    const items = state.general.sidebarItems;
+                    if (!items.some((item) => item.id === 'Moods')) {
+                        const genresIndex = items.findIndex((item) => item.id === 'Genres');
+                        items.splice(genresIndex >= 0 ? genresIndex + 1 : items.length, 0, {
+                            disabled: false,
+                            id: 'Moods',
+                            label: i18n.t('page.sidebar.moods'),
+                            route: AppRoute.LIBRARY_MOODS,
+                        });
+                    }
+                }
+
                 return persistedState;
             },
             name: 'store_settings',
-            version: 34,
+            version: 35,
         },
     ),
 );

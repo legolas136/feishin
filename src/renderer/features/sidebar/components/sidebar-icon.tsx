@@ -1,6 +1,8 @@
 import {
     RiAlbumFill,
     RiAlbumLine,
+    RiEmotionFill,
+    RiEmotionLine,
     RiFlag2Fill,
     RiFlag2Line,
     RiFolder3Fill,
@@ -60,6 +62,9 @@ export const SidebarIcon = ({ active, route, size }: SidebarIconProps) => {
             case AppRoute.LIBRARY_GENRES:
                 if (isActive) return <RiFlag2Fill size={size} />;
                 return <RiFlag2Line size={size} />;
+            case AppRoute.LIBRARY_MOODS:
+                if (isActive) return <RiEmotionFill size={size} />;
+                return <RiEmotionLine size={size} />;
             case AppRoute.LIBRARY_SONGS:
                 if (isActive) return <RiMusic2Fill size={size} />;
                 return <RiMusic2Line size={size} />;

@@ -638,6 +638,9 @@
             "visualizer": "Visualizer",
             "noLyrics": "No lyrics found"
         },
+        "moodList": {
+            "title": "Moods"
+        },
         "genreList": {
             "showAlbums": "Show $t(entity.genre, {\"count\": 1}) $t(entity.album, {\"count\": 2})",
             "showTracks": "Show $t(entity.genre, {\"count\": 1}) $t(entity.track, {\"count\": 2})",
@@ -735,6 +738,7 @@
             "folders": "Folders",
             "genres": "Genres",
             "home": "Home",
+            "moods": "Moods",
             "radio": "Radio Stations",
             "myLibrary": "My Library",
             "nowPlaying": "Now Playing",

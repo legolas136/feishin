@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { getItemImageUrl } from '/@/renderer/components/item-image/item-image';
 import { artistsQueries } from '/@/renderer/features/artists/api/artists-api';
 import { genresQueries } from '/@/renderer/features/genres/api/genres-api';
-import { sharedQueries } from '/@/renderer/features/shared/api/shared-api';
+import { useMoods } from '/@/renderer/features/moods/hooks/use-moods';
 import {
     ArtistMultiSelectRow,
     GenreMultiSelectRow,
@@ -81,28 +81,17 @@ export const NavidromeSongFilters = ({
         }));
     }, [genreListQuery.data]);
 
-    const tagListQuery = useSuspenseQuery(
-        sharedQueries.tagList({
-            options: {
-                gcTime: 1000 * 60 * 60,
-                staleTime: 1000 * 60 * 60,
-            },
-            query: { type: LibraryItem.SONG },
-            serverId,
-        }),
-    );
+    const { moods } = useMoods();
 
     const moodList = useMemo(
         () =>
-            (tagListQuery.data?.tags?.find((tag) => tag.name === 'mood')?.options ?? []).map(
-                (option) => ({
-                    albumCount: null,
-                    label: option.name,
-                    songCount: option.songCount ?? null,
-                    value: option.id,
-                }),
-            ),
-        [tagListQuery.data?.tags],
+            moods.map((mood) => ({
+                albumCount: null,
+                label: mood.name,
+                songCount: mood.songCount,
+                value: mood.id,
+            })),
+        [moods],
     );
 
     const albumArtistListQuery = useSuspenseQuery(
