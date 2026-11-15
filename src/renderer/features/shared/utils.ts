@@ -71,6 +71,8 @@ enum SongFilterKeys {
     HAS_RATING = 'hasRating',
     MAX_YEAR = 'maxYear',
     MIN_YEAR = 'minYear',
+    MOOD = 'moods',
+    MOOD_MODE = 'moodsMode',
 }
 
 const PaginationFilterKeys = {

@@ -45,6 +45,7 @@ import { FavoriteColumn } from '/@/renderer/components/item-list/item-table-list
 import { GenreBadgeColumn } from '/@/renderer/components/item-list/item-table-list/columns/genre-badge-column';
 import { GenreColumn } from '/@/renderer/components/item-list/item-table-list/columns/genre-column';
 import { ImageColumn } from '/@/renderer/components/item-list/item-table-list/columns/image-column';
+import { MoodBadgeColumn } from '/@/renderer/components/item-list/item-table-list/columns/mood-badge-column';
 import { NumericColumn } from '/@/renderer/components/item-list/item-table-list/columns/numeric-column';
 import { PathColumn } from '/@/renderer/components/item-list/item-table-list/columns/path-column';
 import { PlaylistReorderColumn } from '/@/renderer/components/item-list/item-table-list/columns/playlist-reorder-column';
@@ -280,6 +281,11 @@ const ItemTableListColumnBase = (props: ItemTableListColumn) => {
             case TableColumn.LAST_PLAYED:
                 return (
                     <RelativeDateColumn {...props} {...dragProps} controls={controls} type={type} />
+                );
+
+            case TableColumn.MOOD:
+                return (
+                    <MoodBadgeColumn {...props} {...dragProps} controls={controls} type={type} />
                 );
 
             case TableColumn.PATH:
@@ -1329,6 +1335,7 @@ export const columnLabelMap: Record<TableColumn, ReactNode | string> = {
         postProcess: 'upperCase',
     }) as string,
     [TableColumn.LAYOUT_FILL]: '',
+    [TableColumn.MOOD]: i18n.t('table.column.mood', { postProcess: 'upperCase' }) as string,
     [TableColumn.OWNER]: i18n.t('table.column.owner', { postProcess: 'upperCase' }) as string,
     [TableColumn.PATH]: i18n.t('table.column.path', { postProcess: 'upperCase' }) as string,
     [TableColumn.PLAY_COUNT]: i18n.t('table.column.playCount', {

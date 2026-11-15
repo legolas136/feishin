@@ -227,6 +227,8 @@ export const ClientSideSongFilters = () => {
         setHasRating,
         setMaxYear,
         setMinYear,
+        setMoods,
+        setMoodsMode,
     } = usePlaylistSongListFilters();
 
     const playlistSongsQuery = useSuspenseQuery(
@@ -239,7 +241,8 @@ export const ClientSideSongFilters = () => {
     const albumArtistSelectMode = useAppStore((state) => state.albumArtistSelectMode);
     const artistSelectMode = useAppStore((state) => state.artistSelectMode);
     const genreSelectMode = useAppStore((state) => state.genreSelectMode);
-    const { setAlbumArtistSelectMode, setArtistSelectMode, setGenreSelectMode } =
+    const moodSelectMode = useAppStore((state) => state.moodSelectMode);
+    const { setAlbumArtistSelectMode, setArtistSelectMode, setGenreSelectMode, setMoodSelectMode } =
         useAppStoreActions();
 
     const songs = useMemo(() => {
@@ -292,6 +295,15 @@ export const ClientSideSongFilters = () => {
         }
         return filteredSongs;
     }, [filteredSongs, genreSelectMode, query, songs]);
+
+    const songsForMoodOptions = useMemo(() => {
+        const idsMode = (query[FILTER_KEYS.SONG.MOOD_MODE] as 'and' | 'or' | undefined) ?? 'and';
+        if (moodSelectMode === 'multi' && idsMode === 'and') return filteredSongs;
+        return applyClientSideSongFilters(songs, {
+            ...query,
+            [FILTER_KEYS.SONG.MOOD]: undefined,
+        } as Record<string, unknown>);
+    }, [filteredSongs, moodSelectMode, query, songs]);
 
     const albumArtistOptions = useMemo(() => {
         const byId = new Map<
@@ -397,6 +409,24 @@ export const ClientSideSongFilters = () => {
             }));
     }, [songsForGenreOptions]);
 
+    const moodOptions = useMemo(() => {
+        const counts = new Map<string, number>();
+        for (const song of songsForMoodOptions) {
+            for (const mood of song.tags?.mood ?? []) {
+                counts.set(mood, (counts.get(mood) ?? 0) + 1);
+            }
+        }
+        return Array.from(counts)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([name, songCount]) => ({
+                albumCount: null as null | number,
+                imageUrl: undefined,
+                label: name,
+                songCount,
+                value: name,
+            }));
+    }, [songsForMoodOptions]);
+
     const segmentedControlData = useMemo(
         () => [
             { label: t('common.none'), value: 'none' },
@@ -461,6 +491,29 @@ export const ClientSideSongFilters = () => {
             }
         },
         [setGenreId],
+    );
+
+    const selectedMoods = useMemo(
+        () => (query[FILTER_KEYS.SONG.MOOD] as string[] | undefined) ?? [],
+        [query],
+    );
+
+    const handleMoodSelectModeChange = useCallback(
+        (value: string) => {
+            const newMode = value as 'multi' | 'single';
+            setMoodSelectMode(newMode);
+            if (newMode === 'single' && selectedMoods.length > 1) {
+                setMoods([selectedMoods[0]]);
+            }
+        },
+        [selectedMoods, setMoods, setMoodSelectMode],
+    );
+
+    const moodsMode = (query[FILTER_KEYS.SONG.MOOD_MODE] as 'and' | 'or' | undefined) ?? 'and';
+
+    const handleMoodChange = useCallback(
+        (e: null | string[]) => setMoods(e && e.length > 0 ? e : null),
+        [setMoods],
     );
 
     const selectedArtistIds = useMemo(
@@ -620,6 +673,33 @@ export const ClientSideSongFilters = () => {
                 singleSelect={genreSelectMode === 'single'}
                 value={selectedGenreIds}
             />
+            {moodOptions.length > 0 && (
+                <>
+                    <Divider my="md" />
+                    <MultiSelectFilter
+                        height={220}
+                        label={
+                            <MultiSelectFilterLabel
+                                andOrValue={moodsMode}
+                                entityLabel={t('filter.mood')}
+                                filterMultipleLabel={filterMultipleLabel}
+                                filterSingleLabel={filterSingleLabel}
+                                matchAndLabel={matchAndLabel}
+                                matchOrLabel={matchOrLabel}
+                                onAndOrChange={setMoodsMode}
+                                onSingleMultiChange={handleMoodSelectModeChange}
+                                showAndOr={moodSelectMode === 'multi'}
+                                singleMultiValue={moodSelectMode}
+                            />
+                        }
+                        onChange={handleMoodChange}
+                        options={moodOptions}
+                        RowComponent={GenreMultiSelectRow}
+                        singleSelect={moodSelectMode === 'single'}
+                        value={selectedMoods}
+                    />
+                </>
+            )}
             <Divider my="md" />
             <YearRangeFilter
                 fromYearLabel={t('filter.fromYear')}
