@@ -2933,10 +2933,46 @@ export const useSettingsStore = createWithEqualityFn<SettingsSlice>()(
                     });
                 }
 
+                if (version < 35) {
+                    const moodColumn: ItemTableListColumnConfig = {
+                        align: 'start',
+                        autoSize: false,
+                        id: TableColumn.MOOD,
+                        isEnabled: false,
+                        pinned: null,
+                        width: 300,
+                    };
+
+                    for (const listKey of [
+                        ItemListKey.SONG,
+                        ItemListKey.ALBUM_DETAIL,
+                        ItemListKey.FOLDER,
+                        ItemListKey.PLAYLIST_SONG,
+                        ItemListKey.ALBUM_ARTIST_SONG,
+                        ItemListKey.GENRE_SONG,
+                        ItemListKey.QUEUE_SONG,
+                        ItemListKey.FULL_SCREEN,
+                        ItemListKey.SIDE_QUEUE,
+                    ]) {
+                        const columns = state.lists[listKey]?.table?.columns;
+                        if (!columns || columns.some((col) => col.id === TableColumn.MOOD)) {
+                            continue;
+                        }
+                        const genreBadgeIndex = columns.findIndex(
+                            (col) => col.id === TableColumn.GENRE_BADGE,
+                        );
+                        if (genreBadgeIndex >= 0) {
+                            columns.splice(genreBadgeIndex + 1, 0, { ...moodColumn });
+                        } else {
+                            columns.push({ ...moodColumn });
+                        }
+                    }
+                }
+
                 return persistedState;
             },
             name: 'store_settings',
-            version: 34,
+            version: 35,
         },
     ),
 );
