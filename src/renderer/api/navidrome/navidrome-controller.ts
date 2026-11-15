@@ -949,16 +949,23 @@ export const NavidromeController: InternalControllerEndpoint = {
             throw new Error('failed to get tags');
         }
 
-        const tagsToValues = new Map<string, { id: string; name: string; songCount?: number }[]>();
+        const tagsToValues = new Map<string, { id: string; name: string }[]>();
 
         for (const tag of res.body.data) {
-            if (EXCLUDED_TAGS.has(tag.tagName)) continue;
-            const option = { id: tag.id, name: tag.tagValue, songCount: tag.songCount };
-            const options = tagsToValues.get(tag.tagName);
-            if (options) {
-                options.push(option);
-            } else {
-                tagsToValues.set(tag.tagName, [option]);
+            if (!EXCLUDED_TAGS.has(tag.tagName)) {
+                if (tagsToValues.has(tag.tagName)) {
+                    tagsToValues.get(tag.tagName)!.push({
+                        id: tag.id,
+                        name: tag.tagValue,
+                    });
+                } else {
+                    tagsToValues.set(tag.tagName, [
+                        {
+                            id: tag.id,
+                            name: tag.tagValue,
+                        },
+                    ]);
+                }
             }
         }
 
@@ -972,11 +979,7 @@ export const NavidromeController: InternalControllerEndpoint = {
                             b.name.toLocaleLowerCase(),
                         );
                     })
-                    .map((option) => ({
-                        id: option.id,
-                        name: option.name,
-                        songCount: option.songCount,
-                    })),
+                    .map((option) => ({ id: option.id, name: option.name })),
             }))
             .sort((a, b) =>
                 collator.compare(a.name.toLocaleLowerCase(), b.name.toLocaleLowerCase()),

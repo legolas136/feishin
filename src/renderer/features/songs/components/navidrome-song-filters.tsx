@@ -98,7 +98,7 @@ export const NavidromeSongFilters = ({
                 (option) => ({
                     albumCount: null,
                     label: option.name,
-                    songCount: option.songCount ?? null,
+                    songCount: null,
                     value: option.id,
                 }),
             ),
@@ -435,6 +435,7 @@ export const NavidromeSongFilters = ({
                 onChange={(e) => debouncedHandleYearFilter(e)}
                 value={query.minYear ?? undefined}
             />
+            {/* Mood has its own list above, so leave it out of the generic tag filters */}
             <TagFilters
                 exclude={['mood']}
                 query={query}

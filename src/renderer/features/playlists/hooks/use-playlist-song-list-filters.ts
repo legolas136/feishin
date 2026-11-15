@@ -22,11 +22,11 @@ export const usePlaylistSongListFilters = () => {
     const albumArtistIdsMode = useAppStore((state) => state.albumArtistIdsMode);
     const artistIdsMode = useAppStore((state) => state.artistIdsMode);
     const genreIdsMode = useAppStore((state) => state.genreIdsMode);
-    const moodIdsMode = useAppStore((state) => state.moodIdsMode);
+    const moodsMode = useAppStore((state) => state.moodsMode);
     const setAlbumArtistIdsModeStore = useAppStore((state) => state.actions.setAlbumArtistIdsMode);
     const setArtistIdsModeStore = useAppStore((state) => state.actions.setArtistIdsMode);
     const setGenreIdsModeStore = useAppStore((state) => state.actions.setGenreIdsMode);
-    const setMoodIdsModeStore = useAppStore((state) => state.actions.setMoodIdsMode);
+    const setMoodsModeStore = useAppStore((state) => state.actions.setMoodsMode);
     const { sortBy } = useSortByFilter<SongListSort>(SongListSort.ID, ItemListKey.PLAYLIST_SONG);
 
     const { sortOrder } = useSortOrderFilter(SortOrder.ASC, ItemListKey.PLAYLIST_SONG);
@@ -191,8 +191,8 @@ export const usePlaylistSongListFilters = () => {
     );
 
     const setMoodsMode = useCallback(
-        (value: 'and' | 'or') => setMoodIdsModeStore(value),
-        [setMoodIdsModeStore],
+        (value: 'and' | 'or') => setMoodsModeStore(value),
+        [setMoodsModeStore],
     );
 
     const setCustom = useCallback(
@@ -266,7 +266,7 @@ export const usePlaylistSongListFilters = () => {
             [FILTER_KEYS.SONG.MAX_YEAR]: maxYear ?? undefined,
             [FILTER_KEYS.SONG.MIN_YEAR]: minYear ?? undefined,
             [FILTER_KEYS.SONG.MOOD]: moods ?? undefined,
-            [FILTER_KEYS.SONG.MOOD_MODE]: moodIdsMode,
+            [FILTER_KEYS.SONG.MOOD_MODE]: moodsMode,
         }),
         [
             searchTerm,
@@ -284,7 +284,7 @@ export const usePlaylistSongListFilters = () => {
             maxYear,
             minYear,
             moods,
-            moodIdsMode,
+            moodsMode,
         ],
     );
 
